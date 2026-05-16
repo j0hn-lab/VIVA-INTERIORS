@@ -605,10 +605,10 @@ function renderCartSidebar() {
   listEl.innerHTML = cart.map(item => {
     const p = PRODUCTS.find(p => String(p.id) === String(item.id));
     if (!p) return "";
-    const imgSrc = resolveProductImageUrl(p.image);
+    const imgSrc = getProductDisplayImage(p);
     return `
       <div class="cart-item">
-        <img class="cart-item-img" src="${esc(imgSrc)}" alt="${esc(p.name)}" onerror="this.src='https://placehold.co/60x60'">
+        <img class="cart-item-img" src="${imgSrc}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'">
         <div class="cart-item-info">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-price">${fmt(p.price)}</div>
@@ -651,7 +651,7 @@ function renderWishlistSidebar() {
     if (!p) return "";
     return `
       <div class="cart-item">
-        <img class="cart-item-img" src="${esc(resolveProductImageUrl(p.image))}" alt="${esc(p.name)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${esc(IMG_FALLBACK)}'">
+        <img class="cart-item-img" src="${getProductDisplayImage(p)}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'">
         <div class="cart-item-info">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-price">${fmt(p.price)}</div>
@@ -687,10 +687,9 @@ function comingSoonCardHtml() {
 }
 
 function productImageHtml(p) {
-  if (p.comingSoon) return comingSoonCardHtml();
-  const src = esc(resolveProductImageUrl(p.image));
-  const fb = esc(IMG_FALLBACK);
-  return `<img src="${src}" alt="${esc(p.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fb}'">`;
+  const src = getProductDisplayImage(p);
+  const fb = IMG_FALLBACK;
+  return `<img src="${src}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fb}'">`;
 }
 
 function renderProducts(products) {
@@ -726,6 +725,22 @@ function renderProducts(products) {
         </div>
       </div>`;
   }).join("");
+  primeProductCardImages();
+}
+
+function primeProductCardImages() {
+  const fb = typeof IMG_FALLBACK !== "undefined" ? IMG_FALLBACK : "";
+  document.querySelectorAll(".card-image-wrap img").forEach((img) => {
+    img.loading = "eager";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    if (fb) {
+      img.onerror = function () {
+        this.onerror = null;
+        this.src = fb;
+      };
+    }
+  });
 }
 
 function applyFilters() {
