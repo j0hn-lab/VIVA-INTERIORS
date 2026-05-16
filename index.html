@@ -504,7 +504,10 @@
 <!-- ══════════════════ INLINE SCRIPTS ═════════════════════════
      data.js + cart.js inlined below (CONFIG, PRODUCTS, helpers)
      ════════════════════════════════════════════════════════ -->
+<script src="js/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/data.js"></script>
+<script src="js/supabase-client.js"></script>
 <script>
 /* ── CART & WISHLIST STATE ──────────────────────────────────── */
 let cart     = JSON.parse(localStorage.getItem("viva_cart"))     || [];
@@ -597,7 +600,7 @@ function renderCartSidebar() {
   listEl.innerHTML = cart.map(item => {
     const p = PRODUCTS.find(p => String(p.id) === String(item.id));
     if (!p) return "";
-    const imgSrc = p.image || "https://placehold.co/60x60?text=Furniture";
+    const imgSrc = resolveProductImageUrl(p.image);
     return `
       <div class="cart-item">
         <img class="cart-item-img" src="${esc(imgSrc)}" alt="${esc(p.name)}" onerror="this.src='https://placehold.co/60x60'">
@@ -643,7 +646,7 @@ function renderWishlistSidebar() {
     if (!p) return "";
     return `
       <div class="cart-item">
-        <img class="cart-item-img" src="${esc(p.image||"")}" alt="${esc(p.name)}" onerror="this.src='https://placehold.co/60x60'">
+        <img class="cart-item-img" src="${esc(resolveProductImageUrl(p.image))}" alt="${esc(p.name)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${esc(IMG_FALLBACK)}'">
         <div class="cart-item-info">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-price">${fmt(p.price)}</div>
@@ -680,7 +683,7 @@ function comingSoonCardHtml() {
 
 function productImageHtml(p) {
   if (p.comingSoon) return comingSoonCardHtml();
-  const src = esc(p.image || IMG_FALLBACK);
+  const src = esc(resolveProductImageUrl(p.image));
   const fb = esc(IMG_FALLBACK);
   return `<img src="${src}" alt="${esc(p.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fb}'">`;
 }
@@ -892,14 +895,19 @@ function primeTopImages() {
   });
 }
 
-(function init() {
+async function boot() {
   primeTopImages();
   renderCatPills();
   renderFooterCategories();
+  if (typeof loadProductCatalog === "function") {
+    await loadProductCatalog();
+  }
   applyFilters();
   renderCartSidebar();
   updateBadges();
-})();
+}
+
+boot();
 </script>
 </body>
 </html>
