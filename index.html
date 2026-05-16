@@ -504,7 +504,12 @@
 <!-- ══════════════════ INLINE SCRIPTS ═════════════════════════
      data.js + cart.js inlined below (CONFIG, PRODUCTS, helpers)
      ════════════════════════════════════════════════════════ -->
-<script src="js/config.js"></script>
+<script>
+window.VIVA_CONFIG = window.VIVA_CONFIG || {
+  supabaseUrl: "https://ehahxyrrzmgskffyyzzp.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYWh4eXJyem1nc2tmZnl5enpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NTM3NjgsImV4cCI6MjA5NDUyOTc2OH0.WU_HR6OaBv1xqnQRmDHILwsut53pSIg4cAogNAXE84k"
+};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/data.js"></script>
 <script src="js/supabase-client.js"></script>
@@ -789,40 +794,67 @@ document.addEventListener("click", (e) => {
 });
 
 /* ── CAT PILL CLICKS ────────────────────────────────────────── */
-document.getElementById("cat-pills").addEventListener("click", e => {
-  const pill = e.target.closest(".cat-pill");
-  if (!pill) return;
-  currentCategory = pill.dataset.cat;
-  renderCatPills();
-  applyFilters();
-});
+function bindUiEvents() {
+  document.getElementById("cat-pills")?.addEventListener("click", e => {
+    const pill = e.target.closest(".cat-pill");
+    if (!pill) return;
+    currentCategory = pill.dataset.cat;
+    renderCatPills();
+    applyFilters();
+  });
+
+  document.getElementById("sort-select")?.addEventListener("change", e => {
+    currentSort = e.target.value;
+    applyFilters();
+  });
+
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) {
+    searchInput.addEventListener("input", e => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        currentSearch = e.target.value.toLowerCase();
+        applyFilters();
+      }, 300);
+    });
+  }
+
+  document.getElementById("confirm-delete")?.addEventListener("click", () => {
+    const m = document.getElementById("delete-modal");
+    if (m) { m.classList.remove("open"); m.style.display = "none"; }
+  });
+  document.getElementById("cancel-delete")?.addEventListener("click", () => {
+    const m = document.getElementById("delete-modal");
+    if (m) { m.classList.remove("open"); m.style.display = "none"; }
+  });
+}
 
 /* ── CART SIDEBAR TOGGLE ────────────────────────────────────── */
-document.getElementById("cart-btn").addEventListener("click", () => {
+document.getElementById("cart-btn")?.addEventListener("click", () => {
   renderCartSidebar();
   document.getElementById("cart-sidebar").classList.add("open");
   document.getElementById("sidebar-overlay").classList.add("show");
   document.body.style.overflow = "hidden";
 });
-document.getElementById("close-cart").addEventListener("click", () => {
+document.getElementById("close-cart")?.addEventListener("click", () => {
   document.getElementById("cart-sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
   document.body.style.overflow = "";
 });
 
 /* ── WISHLIST SIDEBAR TOGGLE ────────────────────────────────── */
-document.getElementById("wishlist-btn").addEventListener("click", () => {
+document.getElementById("wishlist-btn")?.addEventListener("click", () => {
   renderWishlistSidebar();
   document.getElementById("wishlist-sidebar").classList.add("open");
   document.getElementById("sidebar-overlay").classList.add("show");
   document.body.style.overflow = "hidden";
 });
-document.getElementById("close-wishlist").addEventListener("click", () => {
+document.getElementById("close-wishlist")?.addEventListener("click", () => {
   document.getElementById("wishlist-sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
   document.body.style.overflow = "";
 });
-document.getElementById("sidebar-overlay").addEventListener("click", () => {
+document.getElementById("sidebar-overlay")?.addEventListener("click", () => {
   document.getElementById("cart-sidebar").classList.remove("open");
   document.getElementById("wishlist-sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
@@ -840,29 +872,7 @@ document.addEventListener("click", e => {
   }
 });
 
-/* ── SORT & SEARCH ──────────────────────────────────────────── */
-document.getElementById("sort-select").addEventListener("change", e => {
-  currentSort = e.target.value;
-  applyFilters();
-});
 let searchTimer;
-document.getElementById("search-input").addEventListener("input", e => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    currentSearch = e.target.value.toLowerCase();
-    applyFilters();
-  }, 300);
-});
-
-/* ── DELETE MODAL (placeholder) ─────────────────────────────── */
-document.getElementById("confirm-delete").addEventListener("click", () => {
-  const m = document.getElementById("delete-modal");
-  if (m) { m.classList.remove("open"); m.style.display = "none"; }
-});
-document.getElementById("cancel-delete").addEventListener("click", () => {
-  const m = document.getElementById("delete-modal");
-  if (m) { m.classList.remove("open"); m.style.display = "none"; }
-});
 
 /* ── HEADER SCROLL ──────────────────────────────────────────── */
 window.addEventListener("scroll", () => {
@@ -895,19 +905,53 @@ function primeTopImages() {
   });
 }
 
-async function boot() {
-  primeTopImages();
-  renderCatPills();
-  renderFooterCategories();
-  if (typeof loadProductCatalog === "function") {
-    await loadProductCatalog();
-  }
-  applyFilters();
-  renderCartSidebar();
-  updateBadges();
+function showCatalogError(message) {
+  const grid = document.getElementById("products-grid");
+  if (!grid) return;
+  grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted)">
+    <i class="fas fa-couch" style="font-size:3rem;display:block;margin-bottom:12px"></i>
+    <h3>Could not load catalog</h3>
+    <p style="margin-top:8px;font-size:.9rem">${esc(message)}</p>
+    <button type="button" class="btn-primary" style="margin-top:16px" id="retry-catalog-btn">Try again</button>
+  </div>`;
+  document.getElementById("retry-catalog-btn")?.addEventListener("click", () => boot());
 }
 
-boot();
+async function boot() {
+  try {
+    primeTopImages();
+    renderCatPills();
+    renderFooterCategories();
+    bindUiEvents();
+
+    if (typeof loadProductCatalog === "function") {
+      await loadProductCatalog();
+    }
+
+    if (!PRODUCTS || !PRODUCTS.length) {
+      showCatalogError("No products available. Check your Supabase seed data.");
+      return;
+    }
+
+    applyFilters();
+    renderCartSidebar();
+    updateBadges();
+  } catch (err) {
+    console.error("Storefront boot failed:", err);
+    if (PRODUCTS && PRODUCTS.length) {
+      applyFilters();
+    } else {
+      showCatalogError(err.message || "Something went wrong loading products.");
+    }
+  }
+}
+
+boot().catch((err) => {
+  console.error("Unhandled boot error:", err);
+  if (typeof applyFilters === "function" && PRODUCTS && PRODUCTS.length) {
+    applyFilters();
+  }
+});
 </script>
 </body>
 </html>
