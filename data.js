@@ -249,6 +249,7 @@ let PRODUCTS = [
     tags: ["bookshelf", "storage", "office"],
     inStock: true,
     deliveryDays: 2,
+     
   },
   {
     id: 12,
@@ -327,3 +328,5 @@ function getDiscountPercentage(oldPrice, price) {
   if (!oldPrice || oldPrice <= price) return null;
   return Math.round(((oldPrice - price) / oldPrice) * 100);
 }
+
+
