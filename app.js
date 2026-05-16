@@ -3,6 +3,18 @@
    Main initialization with Supabase integration
    ============================================================ */
 
+/* ── getCategories (was missing — caused renderCategoryPills crash) ── */
+async function getCategories() {
+  if (!supabaseClient) await initSupabase();
+  if (!supabaseClient) throw new Error("No Supabase client");
+  const { data, error } = await supabaseClient
+    .from("categories")
+    .select("id, name, slug, icon")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 // Initialize everything when DOM loads
 document.addEventListener("DOMContentLoaded", async () => {
   const hideLoader = () => {
@@ -10,8 +22,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (loader) loader.classList.add("hidden");
   };
 
-  // Guarantee loader hides after 1.5s no matter what
-  const loaderTimer = setTimeout(hideLoader, 1500);
+  // Guarantee loader hides after 5s no matter what
+  const loaderTimer = setTimeout(() => {
+    hideLoader();
+    // Also render built-in products as a last-resort safety net
+    if (!window._productsRendered) {
+      console.warn("Safety timer fired — rendering built-in products");
+      PRODUCTS = applyCatalogImagesToList(PRODUCTS);
+      window.PRODUCTS_FROM_DB = PRODUCTS;
+      window.renderProducts(PRODUCTS);
+    }
+  }, 5000);
 
   try {
     // Initialize Supabase — timeout so it never blocks the page
@@ -20,51 +41,57 @@ document.addEventListener("DOMContentLoaded", async () => {
       new Promise(resolve => setTimeout(resolve, 3000))
     ]);
 
-    // Load products — ONLY use database products
+    // Load products — prefer DB, fall back to built-in catalog
     let products = [];
     try {
-      console.log('Loading products from database...');
+      console.log("Loading products from database…");
       const dbProducts = await getProducts();
-      console.log('Database products loaded:', dbProducts?.length);
-      
+      console.log("Database products loaded:", dbProducts?.length);
+
       if (dbProducts && dbProducts.length > 0) {
-        console.log('Using database products ONLY');
+        console.log("Using database products");
         products = dbProducts.map(p => ({
           id: p.id,
           name: p.name,
-          category: String(p.category_id || ''),
-          price: p.price,
+          category: String(
+            p.category_slug ||
+            (p.categories && (p.categories.slug || p.categories.name)) ||
+            p.category_id ||
+            p.category ||
+            ""
+          ).toLowerCase().replace(/\s+/g, "-"),
+          price: Number(p.price) || 0,
           oldPrice: p.old_price,
           badge: p.badge,
           rating: p.rating || 4.5,
           reviews: p.reviews || 0,
-          image: productImageFromRow(p),
+          image: getProductDisplayImage(mapDbProduct(p)),
           images: p.images,
           description: p.description,
-          tags: p.tags,
-          inStock: p.in_stock,
+          tags: p.tags || [],
+          inStock: p.in_stock !== false,
           deliveryDays: p.delivery_days,
-          installationGuide: p.installation_guide
+          comingSoon: !!p.coming_soon,
         }));
       } else {
-        console.log('No database products found');
-        products = [...PRODUCTS];
+        console.log("No DB products — using built-in catalog");
+        products = applyCatalogImagesToList([...PRODUCTS]);
       }
     } catch (error) {
-      console.error('Database query failed:', error);
-      products = [...PRODUCTS];
+      console.error("Database query failed — using built-in catalog:", error);
+      products = applyCatalogImagesToList([...PRODUCTS]);
     }
 
     // Store products globally
     window.PRODUCTS_FROM_DB = products;
     PRODUCTS = products;
 
-    // Hide loader now that data is ready (clears the safety timer too)
+    // Hide loader & render
     clearTimeout(loaderTimer);
     hideLoader();
 
-    // Render initial products
-    window.renderProducts(products);
+    window._productsRendered = true;
+    window.renderProducts(sortProductsList(products));
 
     // Render category pills (from Supabase or local)
     await renderCategoryPills();
@@ -73,62 +100,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderCart();
     updateBadges();
 
-    // Initialize hero slider
+    // Initialize hero slider & countdown
     initHero();
-
-    // Initialize countdown timer
     initCountdown();
 
-// Initialize hero slider
-    initHero();
-
-// Initialize countdown timer
-    initCountdown();
-
-    // Setup event listeners
+    // Setup event listeners & search
     setupEventListeners();
-
-    // Setup search input
     setupSearch();
 
   } catch (fatalError) {
-    // If anything above crashes, still hide the loader
-    console.error('App init error:', fatalError);
+    console.error("App init error:", fatalError);
     clearTimeout(loaderTimer);
     hideLoader();
-    // Don't render local products - only database products should show
+    // Always fall back to built-in products so page isn't blank
+    if (!window._productsRendered) {
+      const fallback = applyCatalogImagesToList([...PRODUCTS]);
+      window.PRODUCTS_FROM_DB = fallback;
+      PRODUCTS = fallback;
+      window._productsRendered = true;
+      window.renderProducts(sortProductsList(fallback));
+    }
   }
 });
 
 // Global filter state
 let currentCategory = "all";
-let currentSort = "default";
-let currentSearch = "";
+let currentSort     = "default";
+let currentSearch   = "";
 
 function setupEventListeners() {
-  // Cart button
   const cartBtn = document.getElementById("cart-btn");
   if (cartBtn) cartBtn.addEventListener("click", openCart);
-  
-  // Close cart
+
   const closeCartBtn = document.getElementById("close-cart");
   if (closeCartBtn) closeCartBtn.addEventListener("click", closeCart);
   const cartOverlay = document.getElementById("cart-overlay");
   if (cartOverlay) cartOverlay.addEventListener("click", closeCart);
-  
-  // Wishlist button
+
   const wishlistBtn = document.getElementById("wishlist-btn");
   if (wishlistBtn) wishlistBtn.addEventListener("click", openWishlist);
-  
-  // Modal close
+
   const modalClose = document.getElementById("modal-close");
   if (modalClose) modalClose.addEventListener("click", closeModal);
   const modalOverlay = document.getElementById("modal-overlay");
   if (modalOverlay) modalOverlay.addEventListener("click", (e) => {
     if (e.target === modalOverlay) closeModal();
   });
-  
-  // Sort select
+
   const sortSelect = document.getElementById("sort-select");
   if (sortSelect) {
     sortSelect.addEventListener("change", (e) => {
@@ -136,67 +154,50 @@ function setupEventListeners() {
       applyFiltersAndSort();
     });
   }
-  
-  // Load more button
+
   const loadMoreBtn = document.getElementById("load-more-btn");
   if (loadMoreBtn) loadMoreBtn.addEventListener("click", loadMore);
-  
-  // Mobile drawer
+
   const hamburger = document.getElementById("hamburger");
   if (hamburger) hamburger.addEventListener("click", openDrawer);
   const closeDrawerBtn = document.getElementById("close-drawer");
   if (closeDrawerBtn) closeDrawerBtn.addEventListener("click", closeDrawer);
   const drawerOverlay = document.getElementById("drawer-overlay");
   if (drawerOverlay) drawerOverlay.addEventListener("click", closeDrawer);
-  
-  // Scroll to top
+
   const scrollTopBtn = document.getElementById("scroll-top");
   if (scrollTopBtn) {
     window.addEventListener("scroll", () => {
-      if (window.scrollY > 500) {
-        scrollTopBtn.classList.add("show");
-      } else {
-        scrollTopBtn.classList.remove("show");
-      }
+      scrollTopBtn.classList.toggle("show", window.scrollY > 500);
     });
     scrollTopBtn.addEventListener("click", () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
-  
-  // Header scroll effect
+
   const header = document.getElementById("site-header");
   if (header) {
     window.addEventListener("scroll", () => {
-      if (window.scrollY > 100) {
-        header.classList.add("scrolled");
-      } else {
-        header.classList.remove("scrolled");
-      }
+      header.classList.toggle("scrolled", window.scrollY > 100);
     });
   }
 }
 
 function setupSearch() {
   const searchInput = document.getElementById("search-input");
-  const dropdown = document.getElementById("search-dropdown");
-  
+  const dropdown    = document.getElementById("search-dropdown");
   if (!searchInput) return;
-  
+
   let debounceTimer;
   searchInput.addEventListener("input", (e) => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       currentSearch = e.target.value;
-      renderSearchDropdown(currentSearch);
-      if (currentSearch.length > 1) {
-        applyFiltersAndSort();
-      } else if (currentSearch.length === 0) {
-        applyFiltersAndSort();
-      }
+      if (typeof renderSearchDropdown === "function") renderSearchDropdown(currentSearch);
+      applyFiltersAndSort();
     }, 300);
   });
-  
+
   document.addEventListener("click", (e) => {
     if (!searchInput.contains(e.target) && !dropdown?.contains(e.target)) {
       dropdown?.classList.remove("show");
@@ -205,191 +206,135 @@ function setupSearch() {
 }
 
 async function applyFiltersAndSort() {
-  let filtered = window.PRODUCTS_FROM_DB || PRODUCTS;
-  
-  // Filter by category
+  let filtered = [...(window.PRODUCTS_FROM_DB || PRODUCTS)];
+
   if (currentCategory !== "all") {
     filtered = filtered.filter(p => p.category === currentCategory);
   }
-  
-  // Filter by search
+
   if (currentSearch && currentSearch.length >= 2) {
     const q = currentSearch.toLowerCase();
-    filtered = filtered.filter(p => 
+    filtered = filtered.filter(p =>
       p.name.toLowerCase().includes(q) ||
       (p.category && p.category.toLowerCase().includes(q)) ||
       (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
     );
   }
-  
-  // Sort
+
   switch (currentSort) {
-    case "price-asc":
-      filtered.sort((a, b) => a.price - b.price);
-      break;
-    case "price-desc":
-      filtered.sort((a, b) => b.price - a.price);
-      break;
-    case "rating":
-      filtered.sort((a, b) => b.rating - a.rating);
-      break;
-    default:
-      filtered.sort((a, b) => a.id - b.id);
+    case "price-asc":  filtered.sort((a, b) => a.price - b.price); break;
+    case "price-desc": filtered.sort((a, b) => b.price - a.price); break;
+    case "rating":     filtered.sort((a, b) => (b.rating||0) - (a.rating||0)); break;
+    default:           filtered.sort((a, b) => a.id - b.id);
   }
-  
+
   window.renderProducts(filtered);
 }
 
-window.filterByCategory = (categoryId, btnElement) => {
+window.filterByCategory = (categoryId) => {
   currentCategory = categoryId;
-  
   document.querySelectorAll(".cat-pill").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.cat === categoryId);
   });
-  
   applyFiltersAndSort();
 };
 
 // Initialize hero slider
 function initHero() {
-  console.log('Hero slider initialized');
-  // Add hero initialization logic here if needed
+  console.log("Hero slider initialized");
 }
 
 // Initialize countdown timer
 function initCountdown() {
-  console.log('Countdown timer initialized');
-  // Add countdown logic here if needed
+  console.log("Countdown timer initialized");
 }
 
-
-// Render products to the grid
+/* ── RENDER PRODUCTS GRID ─────────────────────────────────── */
 window.renderProducts = function(products) {
-  console.log('renderProducts called with:', products?.length, 'products');
-  const grid = document.getElementById('products-grid');
-  console.log('Products grid element found:', !!grid);
+  console.log("renderProducts called with:", products?.length, "products");
+  const grid = document.getElementById("products-grid");
   if (!grid) return;
-  
+
   if (!products || products.length === 0) {
     grid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
-        <i class="fa-solid fa-box-open" style="font-size: 3rem; color: var(--muted); margin-bottom: 16px; display: block;"></i>
-        <h3 style="color: var(--muted); margin-bottom: 8px;">No products found</h3>
-        <p style="color: var(--muted);">Try adjusting your filters or search terms</p>
+      <div style="grid-column:1/-1;text-align:center;padding:60px 20px;">
+        <i class="fa-solid fa-box-open" style="font-size:3rem;color:var(--text-muted);margin-bottom:16px;display:block;"></i>
+        <h3 style="color:var(--text-muted);margin-bottom:8px;">No products found</h3>
+        <p style="color:var(--text-muted);">Try adjusting your filters or search terms</p>
       </div>
     `;
     return;
   }
-  
-  grid.innerHTML = products.map(product => `
-    <div class="product-card" data-id="${product.id}">
-      <div class="card-image-wrap">
-        <img src="${resolveProductImageUrl(product.image || product.image_url)}" alt="${product.name}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'"/>
-        ${product.badge ? `<span class="card-badge badge-${product.badge}">${product.badge}</span>` : ''}
-        ${!product.inStock ? '<div class="out-of-stock-overlay">Out of Stock</div>' : ''}
-      </div>
-      <div class="card-info">
-        <h3 class="card-title">${product.name}</h3>
-        <p class="card-category">${product.category || 'Uncategorized'}</p>
-        <div class="card-price">
-          ${product.oldPrice && product.oldPrice > product.price ? 
-            `<span class="old-price">${fmt(product.oldPrice)}</span>` : ''}
-          <span class="current-price">${fmt(product.price)}</span>
-        </div>
-        <div class="card-actions">
-          <button class="btn-primary" onclick="cartAdd(${product.id})">
-            <i class="fa-solid fa-bag-shopping"></i> Add to Cart
-          </button>
-          <button class="btn-ghost" onclick="wishlistToggle(${product.id})">
-            <i class="fa-regular fa-heart"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  `).join('');
-  
-  // Update load more button
-  const loadMoreBtn = document.getElementById('load-more-btn');
-  if (loadMoreBtn) {
-    loadMoreBtn.style.display = products.length >= 12 ? 'block' : 'none';
-  }
-};
 
-// Define renderProducts function first
-window.renderProducts = function(products) {
-  console.log('renderProducts called with:', products?.length, 'products');
-  const grid = document.getElementById('products-grid');
-  console.log('Products grid element found:', !!grid);
-  if (!grid) return;
-  
-  if (!products || products.length === 0) {
-    grid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
-        <i class="fa-solid fa-box-open" style="font-size: 3rem; color: var(--muted); margin-bottom: 16px; display: block;"></i>
-        <h3 style="color: var(--muted); margin-bottom: 8px;">No products found</h3>
-        <p style="color: var(--muted);">Try adjusting your filters or search terms</p>
-      </div>
-    `;
-    return;
-  }
-  
-  grid.innerHTML = products.map(product => `
-    <div class="product-card" data-id="${product.id}">
-      <div class="card-image-wrap">
-        <img src="${resolveProductImageUrl(product.image || product.image_url)}" alt="${product.name}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'"/>
-        ${product.badge ? `<span class="card-badge badge-${product.badge}">${product.badge}</span>` : ''}
-        ${!product.inStock ? '<div class="out-of-stock-overlay">Out of Stock</div>' : ''}
-      </div>
-      <div class="card-info">
-        <h3 class="card-title">${product.name}</h3>
-        <p class="card-category">${product.category || 'Uncategorized'}</p>
-        <div class="card-price">
-          ${product.oldPrice && product.oldPrice > product.price ? 
-            `<span class="old-price">${fmt(product.oldPrice)}</span>` : ''}
-          <span class="current-price">${fmt(product.price)}</span>
-        </div>
-        <div class="card-actions">
-          <button class="btn-primary" onclick="cartAdd(${product.id})">
-            <i class="fa-solid fa-bag-shopping"></i> Add to Cart
-          </button>
-          <button class="btn-ghost" onclick="wishlistToggle(${product.id})">
-            <i class="fa-regular fa-heart"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  `).join('');
-  
-  // Update load more button
-  const loadMoreBtn = document.getElementById('load-more-btn');
-  if (loadMoreBtn) {
-    loadMoreBtn.style.display = products.length >= 12 ? 'block' : 'none';
-  }
-};
+  grid.innerHTML = products.map(product => {
+    // Build the image URL the SAME way the splash screen does — direct Pexels CDN URL
+    const imgSrc = getProductDisplayImage(product);
+    const discount = product.oldPrice && product.oldPrice > product.price
+      ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+      : null;
 
-// Then add admin enhancement
-const originalRenderProducts = window.renderProducts;
-if (originalRenderProducts) {
-  window.renderProducts = function(products) {
-    originalRenderProducts(products);
-    setTimeout(() => {
-      if (typeof isAdminLoggedIn !== 'undefined' && isAdminLoggedIn()) {
-        if (typeof enhanceProductCardsWithAdmin !== 'undefined') {
-          enhanceProductCardsWithAdmin();
-        }
+    return `
+      <div class="product-card" data-id="${product.id}">
+        <div class="card-image-wrap">
+          <img
+            src="${imgSrc}"
+            alt="${product.name}"
+            loading="eager"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            crossorigin="anonymous"
+            onerror="this.onerror=null;this.src='${IMG_FALLBACK}'"
+          />
+          ${product.badge ? `<span class="card-badge badge-${product.badge}">${product.badge}</span>` : ""}
+          ${discount ? `<span class="card-badge badge-discount">-${discount}%</span>` : ""}
+          ${!product.inStock ? '<div class="out-of-stock-overlay">Out of Stock</div>' : ""}
+          ${product.comingSoon ? '<div class="out-of-stock-overlay">Coming Soon</div>' : ""}
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">${product.name}</h3>
+          <p class="card-category">${product.category || "Furniture"}</p>
+          <div class="card-price">
+            ${product.oldPrice && product.oldPrice > product.price
+              ? `<span class="old-price">${fmt(product.oldPrice)}</span>` : ""}
+            <span class="current-price">${fmt(product.price)}</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-primary" onclick="cartAdd(${product.id})">
+              <i class="fa-solid fa-bag-shopping"></i> Add to Cart
+            </button>
+            <button class="btn-ghost card-wishlist ${isWishlisted(product.id) ? "active" : ""}"
+              data-id="${product.id}" onclick="wishlistToggle(${product.id})">
+              <i class="${isWishlisted(product.id) ? "fa-solid" : "fa-regular"} fa-heart"></i>
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  const loadMoreBtn = document.getElementById("load-more-btn");
+  if (loadMoreBtn) {
+    loadMoreBtn.style.display = products.length >= 12 ? "block" : "none";
+  }
+
+  // Admin enhancement hook
+  setTimeout(() => {
+    if (typeof isAdminLoggedIn !== "undefined" && isAdminLoggedIn()) {
+      if (typeof enhanceProductCardsWithAdmin !== "undefined") {
+        enhanceProductCardsWithAdmin();
       }
-    }, 100);
-  };
-}
+    }
+  }, 100);
+};
 
+/* ── WISHLIST SIDEBAR ─────────────────────────────────────── */
 function openWishlist() {
-  let wishlistSidebar = document.getElementById("wishlist-sidebar");
-  if (!wishlistSidebar) {
+  let sidebar = document.getElementById("wishlist-sidebar");
+  if (!sidebar) {
     createWishlistSidebar();
-    wishlistSidebar = document.getElementById("wishlist-sidebar");
+    sidebar = document.getElementById("wishlist-sidebar");
   }
   renderWishlistSidebar();
-  wishlistSidebar.classList.add("open");
+  sidebar.classList.add("open");
   document.body.style.overflow = "hidden";
 }
 
@@ -411,12 +356,12 @@ function createWishlistSidebar() {
     <div class="wishlist-items" id="wishlist-items-list"></div>
   `;
   document.body.appendChild(sidebar);
-  
+
   const overlay = document.createElement("div");
   overlay.id = "wishlist-overlay";
   overlay.className = "drawer-overlay";
   document.body.appendChild(overlay);
-  
+
   document.getElementById("close-wishlist")?.addEventListener("click", closeWishlist);
   overlay.addEventListener("click", closeWishlist);
 }
@@ -424,9 +369,9 @@ function createWishlistSidebar() {
 function renderWishlistSidebar() {
   const container = document.getElementById("wishlist-items-list");
   if (!container) return;
-  
+
   const productsList = window.PRODUCTS_FROM_DB || PRODUCTS;
-  
+
   if (wishlist.length === 0) {
     container.innerHTML = `
       <div class="wishlist-empty">
@@ -436,61 +381,74 @@ function renderWishlistSidebar() {
       </div>`;
     return;
   }
-  
+
   container.innerHTML = wishlist.map(id => {
     const p = productsList.find(pr => pr.id == id);
     if (!p) return "";
     return `
       <div class="wishlist-item">
-        <img src="${p.image}" alt="${p.name}"/>
+        <img src="${getProductDisplayImage(p)}" alt="${p.name}"
+          referrerpolicy="no-referrer"
+          onerror="this.onerror=null;this.src='${IMG_FALLBACK}'" />
         <div class="wishlist-item-info">
           <div class="wishlist-item-name">${p.name}</div>
           <div class="wishlist-item-price">${fmt(p.price)}</div>
           <div class="wishlist-item-actions">
             <button class="wishlist-add-cart" onclick="cartAdd(${p.id}); closeWishlist();">Add to Cart</button>
-            <button class="wishlist-remove" onclick="wishlistToggle(${p.id}); renderWishlistSidebar();"><i class="fa-solid fa-trash-can"></i></button>
+            <button class="wishlist-remove" onclick="wishlistToggle(${p.id}); renderWishlistSidebar();">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
           </div>
         </div>
       </div>`;
   }).join("");
 }
 
-const originalWishlistToggle = wishlistToggle;
+const _origWishlistToggle = wishlistToggle;
 window.wishlistToggle = function(productId) {
-  originalWishlistToggle(productId);
+  _origWishlistToggle(productId);
   const sidebar = document.getElementById("wishlist-sidebar");
-  if (sidebar && sidebar.classList.contains("open")) {
-    renderWishlistSidebar();
-  }
+  if (sidebar && sidebar.classList.contains("open")) renderWishlistSidebar();
 };
 
+/* ── CATEGORY PILLS ───────────────────────────────────────── */
 async function renderCategoryPills() {
-  const container = document.getElementById("cat-pills");
+  const container  = document.getElementById("cat-pills");
   const drawerCats = document.getElementById("drawer-cats");
   if (!container) return;
-  
-  let categories = CATEGORIES;
-  
+
+  let categories = CATEGORIES; // always start with local fallback
+
   try {
-    const dbCategories = await getCategories();
-    if (dbCategories && dbCategories.length > 0) {
-      categories = dbCategories;
+    const dbCats = await getCategories();
+    if (dbCats && dbCats.length > 0) {
+      // Map DB rows to the same shape as local CATEGORIES
+      categories = [
+        { id: "all", name: "All Products", icon: "fa-solid fa-border-all" },
+        ...dbCats.map(c => ({
+          id: c.slug || String(c.id),
+          name: c.name,
+          icon: c.icon || "fa-solid fa-tag",
+        })),
+      ];
     }
-  } catch (error) {
-    console.log('Using local categories');
+  } catch {
+    console.log("Using local categories");
   }
-  
+
   container.innerHTML = categories.map((c, i) => `
-    <button class="cat-pill ${i === 0 ? "active" : ""}" data-cat="${c.id}" onclick="filterByCategory('${c.id}', this)">
-      <i class="${c.icon}"></i> ${c.name}
+    <button class="cat-pill ${i === 0 ? "active" : ""}" data-cat="${c.id}"
+      onclick="filterByCategory('${c.id}', this)">
+      <i class="${c.icon}"></i> ${c.name || c.label}
     </button>
   `).join("");
-  
+
   if (drawerCats) {
     drawerCats.innerHTML = categories.map(c => `
       <li>
-        <button onclick="filterByCategory('${c.id}'); closeDrawer();" style="display:flex;align-items:center;gap:10px;padding:14px 20px;width:100%;font-size:.9rem;color:var(--text)">
-          <i class="${c.icon}" style="color:var(--primary);width:18px"></i> ${c.name}
+        <button onclick="filterByCategory('${c.id}'); closeDrawer();"
+          style="display:flex;align-items:center;gap:10px;padding:14px 20px;width:100%;font-size:.9rem;color:var(--text)">
+          <i class="${c.icon}" style="color:var(--primary);width:18px"></i> ${c.name || c.label}
         </button>
       </li>
     `).join("");
