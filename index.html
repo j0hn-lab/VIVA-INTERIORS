@@ -297,11 +297,11 @@
 <!-- ═══════════════════════ SPLASH SCREEN ═══════════════════ -->
 <div id="splash">
   <div class="splash-furniture">
-    <div class="splash-piece" style="transform:rotate(-6deg)"><img src="https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=120&h=90&fit=crop" width="90" height="68" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>
-    <div class="splash-piece" style="transform:rotate(-2deg)"><img src="https://images.pexels.com/photos/1866149/pexels-photo-1866149.jpeg?auto=compress&cs=tinysrgb&w=140&h=105&fit=crop" width="110" height="82" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>
-    <div class="splash-piece"><img src="https://images.pexels.com/photos/1080721/pexels-photo-1080721.jpeg?auto=compress&cs=tinysrgb&w=180&h=130&fit=crop" width="140" height="100" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>
-    <div class="splash-piece" style="transform:rotate(2deg)"><img src="https://images.pexels.com/photos/1454806/pexels-photo-1454806.jpeg?auto=compress&cs=tinysrgb&w=140&h=105&fit=crop" width="110" height="82" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>
-    <div class="splash-piece" style="transform:rotate(6deg)"><img src="https://images.pexels.com/photos/276534/pexels-photo-276534.jpeg?auto=compress&cs=tinysrgb&w=120&h=90&fit=crop" width="90" height="68" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>
+    <div class="splash-piece" style="transform:rotate(-6deg)"><img src="https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=120&h=90&fit=crop" width="90" height="68" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade"></div>
+    <div class="splash-piece" style="transform:rotate(-2deg)"><img src="https://images.pexels.com/photos/1866149/pexels-photo-1866149.jpeg?auto=compress&cs=tinysrgb&w=140&h=105&fit=crop" width="110" height="82" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade"></div>
+    <div class="splash-piece"><img src="https://images.pexels.com/photos/1080721/pexels-photo-1080721.jpeg?auto=compress&cs=tinysrgb&w=180&h=130&fit=crop" width="140" height="100" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade"></div>
+    <div class="splash-piece" style="transform:rotate(2deg)"><img src="https://images.pexels.com/photos/1454806/pexels-photo-1454806.jpeg?auto=compress&cs=tinysrgb&w=140&h=105&fit=crop" width="110" height="82" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade"></div>
+    <div class="splash-piece" style="transform:rotate(6deg)"><img src="https://images.pexels.com/photos/276534/pexels-photo-276534.jpeg?auto=compress&cs=tinysrgb&w=120&h=90&fit=crop" width="90" height="68" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade"></div>
   </div>
   <div class="splash-brand">VIVA <span>Interiors</span></div>
   <div class="splash-text">Interiors & Furniture Repairs · Kenya</div>
@@ -511,8 +511,517 @@ window.VIVA_CONFIG = window.VIVA_CONFIG || {
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/data.js"></script>
-<script src="js/supabase-client.js"></script>
+<script>
+/* ============================================================
+   VIVA INTERIORS & FURNITURE REPAIRS — data.js
+   ============================================================ */
+
+const CONFIG = {
+  waNumber: "254741968635",
+  phoneNumber: "0741968635",
+  storeName: "VIVA INTERIORS & FURNITURE REPAIRS",
+  storeShort: "VIVA Interiors",
+  teamLeader: "Joshua",
+  locations: "Waithaka, Karen & Kikuyu",
+  currency: "KSh",
+  socialMedia: {
+    whatsapp: "https://wa.me/254741968635",
+  },
+  supabaseUrl: "https://ehahxyrrzmgskffyyzzp.supabase.co",
+  supabaseAnonKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYWh4eXJyem1nc2tmZnl5enpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NTM3NjgsImV4cCI6MjA5NDUyOTc2OH0.WU_HR6OaBv1xqnQRmDHILwsut53pSIg4cAogNAXE84k",
+};
+
+if (typeof window !== "undefined" && window.VIVA_CONFIG) {
+  Object.assign(CONFIG, window.VIVA_CONFIG);
+}
+
+/** Reliable CDN images (Pexels) — works when opening file locally */
+function pexels(id, w = 600, h = null) {
+  let url = `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${w}`;
+  if (h) url += `&h=${h}&fit=crop`;
+  return url;
+}
+
+const IMG_FALLBACK = pexels(1571460, 600, 400);
+
+/** Same Pexels IDs as splash/hero — used for every product card image. */
+const CATEGORY_PEXELS_ID = {
+  living: 1571460,
+  bedroom: 1454806,
+  dining: 1080721,
+  office: 7688336,
+  outdoor: 2765834,
+  repairs: 1571468,
+};
+
+function normalizeProductName(name) {
+  return (name || "")
+    .toLowerCase()
+    .replace(/[—–‑-]/g, " ")
+    .replace(/[^\w\s&]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Product card image URL — same CDN pattern as splash screen (always works on Vercel). */
+function getProductDisplayImage(product) {
+  if (!product) return IMG_FALLBACK;
+  if (product.photoId) return pexels(product.photoId, 600, 400);
+  const key = normalizeProductName(product.name);
+  const match = BUILTIN_CATALOG.find((b) => normalizeProductName(b.name) === key);
+  if (match?.image) return match.image;
+  if (match?.photoId) return pexels(match.photoId, 600, 400);
+  const catId = CATEGORY_PEXELS_ID[product.category];
+  if (catId) return pexels(catId, 600, 400);
+  return IMG_FALLBACK;
+}
+
+function applyCatalogImagesToList(list) {
+  return list.map((p) => ({ ...p, image: getProductDisplayImage(p) }));
+}
+
+/** Normalize product image URLs (absolute, Supabase storage, or fallback). */
+function resolveProductImageUrl(raw) {
+  if (!raw || typeof raw !== "string") return IMG_FALLBACK;
+  const trimmed = raw.trim();
+  if (!trimmed) return IMG_FALLBACK;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const base = (CONFIG.supabaseUrl || "").replace(/\/$/, "");
+  if (!base) return IMG_FALLBACK;
+  const path = trimmed.replace(/^\//, "");
+  if (path.startsWith("storage/v1/")) return `${base}/${path}`;
+  return `${base}/storage/v1/object/public/${path}`;
+}
+
+function productImageFromRow(row) {
+  const raw =
+    row?.image_url ||
+    row?.image ||
+    (Array.isArray(row?.images) && row.images[0]) ||
+    "";
+  return resolveProductImageUrl(raw);
+}
+
+function mapDbProduct(row) {
+  let cat =
+    row.category_slug ||
+    (row.categories && row.categories.slug) ||
+    row.category ||
+    (row.categories && row.categories.name) ||
+    "";
+  if (!cat && row.category_id) {
+    cat = String(row.category_id);
+  }
+  const categorySlug = String(cat).toLowerCase().replace(/\s+/g, "-");
+  const mapped = {
+    id: row.id,
+    name: row.name,
+    category: categorySlug,
+    price: Number(row.price) || 0,
+    oldPrice: row.old_price,
+    badge: row.badge,
+    image: IMG_FALLBACK,
+    description: row.description,
+    tags: row.tags || [],
+    inStock: row.in_stock !== false,
+    deliveryDays: row.delivery_days,
+    comingSoon: !!row.coming_soon,
+  };
+  mapped.image = getProductDisplayImage(mapped);
+  return mapped;
+}
+
+const SITE_IMAGES = {
+  splash: [
+    pexels(1571460, 120, 90),
+    pexels(1866149, 140, 105),
+    pexels(1080721, 180, 130),
+    pexels(1454806, 140, 105),
+    pexels(276534, 120, 90),
+  ],
+  hero: {
+    main: pexels(1571460, 560, 400),
+    left: pexels(1080721, 280, 210),
+    right: pexels(1454806, 260, 196),
+    mini: pexels(276534, 200, 150),
+  },
+};
+
+const CATEGORIES = [
+  { id: "all",         label: "All Products",       icon: "fa-solid fa-border-all" },
+  { id: "living",      label: "Living Room",        icon: "fa-solid fa-couch" },
+  { id: "bedroom",     label: "Bedroom",            icon: "fa-solid fa-bed" },
+  { id: "dining",      label: "Dining",             icon: "fa-solid fa-utensils" },
+  { id: "office",      label: "Office",             icon: "fa-solid fa-chair" },
+  { id: "outdoor",     label: "Outdoor",            icon: "fa-solid fa-tree" },
+  { id: "repairs",     label: "Repairs & Custom",   icon: "fa-solid fa-screwdriver-wrench" },
+];
+
+let PRODUCTS = [
+  {
+    id: 1,
+    photoId: 1571460,
+    name: "L-Shaped Fabric Sofa — 5 Seater, Grey",
+    category: "living",
+    price: 85000,
+    oldPrice: 98000,
+    badge: "sale",
+    image: pexels(1571460, 600, 400),
+    description: "Spacious L-shaped sofa with high-density foam cushions and durable fabric upholstery. Perfect for family living rooms. Delivery and setup available across Nairobi.",
+    tags: ["sofa", "living room", "fabric", "grey"],
+    inStock: true,
+    deliveryDays: 3,
+  },
+  {
+    id: 2,
+    photoId: 276534,
+    name: "Modern Coffee Table — Solid Wood & Glass",
+    category: "living",
+    price: 18500,
+    oldPrice: 22000,
+    badge: "best",
+    image: pexels(276534, 600, 400),
+    description: "Elegant coffee table combining solid oak legs with tempered glass top. Easy to clean, sturdy, and complements modern and classic interiors.",
+    tags: ["coffee table", "wood", "glass", "living room"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+  {
+    id: 3,
+    photoId: 1454806,
+    name: "Queen Size Bed Frame — Upholstered Headboard",
+    category: "bedroom",
+    price: 62000,
+    oldPrice: 75000,
+    badge: "hot",
+    image: pexels(1454806, 600, 400),
+    description: "Stylish queen bed with padded headboard, slatted base, and reinforced frame. Available in charcoal, beige, and navy. Mattress sold separately.",
+    tags: ["bed", "bedroom", "queen", "upholstered"],
+    inStock: true,
+    deliveryDays: 3,
+  },
+  {
+    id: 4,
+    photoId: 667838,
+    name: "6-Door Wardrobe — Mirror & Hanging Rails",
+    category: "bedroom",
+    price: 95000,
+    oldPrice: 110000,
+    badge: "sale",
+    image: pexels(667838, 600, 400),
+    description: "Spacious wardrobe with mirrored doors, shelves, and hanging sections. Ideal for master bedrooms. Professional assembly included.",
+    tags: ["wardrobe", "bedroom", "storage", "mirror"],
+    inStock: true,
+    deliveryDays: 4,
+  },
+  {
+    id: 5,
+    photoId: 1080721,
+    name: "Dining Set — 6 Chairs & Extendable Table",
+    category: "dining",
+    price: 78000,
+    oldPrice: 92000,
+    badge: "best",
+    image: pexels(1080721, 600, 400),
+    description: "Solid wood dining table with extension leaf seats six comfortably. Matching upholstered chairs with ergonomic backs.",
+    tags: ["dining", "table", "chairs", "wood"],
+    inStock: true,
+    deliveryDays: 3,
+  },
+  {
+    id: 6,
+    photoId: 4621977,
+    name: "Bar Stools — Set of 2, Leather Seat",
+    category: "dining",
+    price: 12000,
+    oldPrice: 15000,
+    badge: "sale",
+    image: pexels(4621977, 600, 400),
+    description: "Counter-height bar stools with swivel seats and footrests. PU leather upholstery, steel legs with powder-coated finish.",
+    tags: ["bar stool", "dining", "kitchen"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+  {
+    id: 7,
+    photoId: 7688336,
+    name: "Executive Office Desk — Drawers & Cable Management",
+    category: "office",
+    price: 45000,
+    oldPrice: 52000,
+    badge: "new",
+    image: pexels(7688336, 600, 400),
+    description: "Professional desk with file drawers, keyboard tray, and built-in cable ports. Walnut finish. Perfect for home offices and studies.",
+    tags: ["desk", "office", "work from home"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+  {
+    id: 8,
+    photoId: 1181533,
+    name: "Ergonomic Office Chair — Mesh Back, Adjustable",
+    category: "office",
+    price: 22000,
+    oldPrice: 28000,
+    badge: "hot",
+    image: pexels(1181533, 600, 400),
+    description: "Breathable mesh back, lumbar support, height and tilt adjustment. Smooth-rolling casters for carpet and tile floors.",
+    tags: ["chair", "office", "ergonomic"],
+    inStock: true,
+    deliveryDays: 1,
+  },
+  {
+    id: 9,
+    photoId: 2765834,
+    name: "Outdoor Patio Set — Table + 4 Chairs",
+    category: "outdoor",
+    price: 55000,
+    oldPrice: 65000,
+    badge: "sale",
+    image: pexels(2765834, 600, 400),
+    description: "Weather-resistant rattan-style patio set for balconies and gardens. Cushions included. Easy to maintain.",
+    tags: ["outdoor", "patio", "garden", "rattan"],
+    inStock: true,
+    deliveryDays: 3,
+  },
+  {
+    id: 10,
+    photoId: 7319274,
+    name: "TV Stand — 55\" with Storage Cabinets",
+    category: "living",
+    price: 28000,
+    oldPrice: 34000,
+    badge: null,
+    image: pexels(7319274, 600, 400),
+    description: "Low-profile TV unit with open shelf and closed cabinets. Cable holes, stable base, fits TVs up to 55 inches.",
+    tags: ["tv stand", "living room", "storage"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+  {
+    id: 11,
+    photoId: 1571453,
+    name: "Bookshelf — 5-Tier Open Display",
+    category: "office",
+    price: 16500,
+    oldPrice: 20000,
+    badge: "sale",
+    image: pexels(1571453, 600, 400),
+    description: "Versatile shelving unit for books, décor, and office supplies. Sturdy particle board with laminate finish.",
+    tags: ["bookshelf", "storage", "office"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+  {
+    id: 12,
+    photoId: 1571468,
+    name: "Sofa Re-Upholstery — Per Seat (Labour + Material)",
+    category: "repairs",
+    price: 8500,
+    oldPrice: null,
+    badge: "best",
+    image: pexels(1571468, 600, 400),
+    description: "Bring your sofa back to life. Fabric or leather re-upholstery per seat. Free assessment at Waithaka, Karen, or Kikuyu. Led by our repair team.",
+    tags: ["repair", "upholstery", "sofa", "custom"],
+    inStock: true,
+    deliveryDays: 7,
+  },
+  {
+    id: 13,
+    photoId: 1080696,
+    name: "Furniture Repair — Chairs, Tables & Cabinets",
+    category: "repairs",
+    price: 3500,
+    oldPrice: null,
+    badge: "hot",
+    image: pexels(1080696, 600, 400),
+    description: "Expert repair for broken legs, loose joints, drawer runners, and surface damage. Quote after inspection — contact Joshua's team on WhatsApp.",
+    tags: ["repair", "restoration", "wood"],
+    inStock: true,
+    deliveryDays: 5,
+  },
+  {
+    id: 14,
+    photoId: 667838,
+    name: "Custom Built-In Wardrobe — Per Metre",
+    category: "repairs",
+    price: 18000,
+    oldPrice: null,
+    badge: "new",
+    comingSoon: true,
+    image: pexels(667838, 600, 400),
+    description: "Made-to-measure built-in wardrobes tailored to your space. Design consultation, manufacture, and installation by VIVA Interiors.",
+    tags: ["custom", "wardrobe", "built-in"],
+    inStock: true,
+    deliveryDays: 14,
+  },
+  {
+    id: 15,
+    photoId: 1866149,
+    name: "Accent Armchair — Velvet, Emerald Green",
+    category: "living",
+    price: 32000,
+    oldPrice: 38000,
+    badge: "sale",
+    comingSoon: true,
+    image: pexels(1866149, 600, 400),
+    description: "Statement armchair with velvet upholstery and gold-finish legs. Adds colour and comfort to any corner or reading nook.",
+    tags: ["armchair", "velvet", "accent", "living room"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+  {
+    id: 16,
+    photoId: 1454806,
+    name: "Bedside Tables — Pair, 2 Drawers Each",
+    category: "bedroom",
+    price: 14000,
+    oldPrice: 17000,
+    badge: "sale",
+    comingSoon: true,
+    image: pexels(1454806, 600, 400),
+    description: "Matching pair of bedside tables with soft-close drawers. Compact design suits most bedrooms.",
+    tags: ["bedside", "nightstand", "bedroom"],
+    inStock: true,
+    deliveryDays: 2,
+  },
+];
+
+const BUILTIN_CATALOG = PRODUCTS.map((p) => ({
+  id: p.id,
+  name: p.name,
+  category: p.category,
+  photoId: p.photoId,
+  image: p.image || (p.photoId ? pexels(p.photoId, 600, 400) : IMG_FALLBACK),
+}));
+
+PRODUCTS = applyCatalogImagesToList(PRODUCTS);
+
+function sortProductsList(list) {
+  const available = list.filter((p) => !p.comingSoon);
+  const soon = list.filter((p) => p.comingSoon);
+  return [...available, ...soon];
+}
+
+function getDiscountPercentage(oldPrice, price) {
+  if (!oldPrice || oldPrice <= price) return null;
+  return Math.round(((oldPrice - price) / oldPrice) * 100);
+}
+
+</script>
+<script>
+/* ============================================================
+   VIVA INTERIORS — supabase-client.js
+   Strategy: render built-in catalog INSTANTLY, then silently
+   refresh from Supabase in the background if available.
+   ============================================================ */
+
+   let supabaseClient = null;
+   const CATALOG_FETCH_MS = 6000; // max wait for DB
+   
+   function withTimeout(promise, ms, label) {
+     return Promise.race([
+       promise,
+       new Promise((_, reject) =>
+         setTimeout(() => reject(new Error(`${label || "Request"} timed out after ${ms}ms`)), ms)
+       ),
+     ]);
+   }
+   
+   function initSupabase() {
+     const url = CONFIG.supabaseUrl;
+     const key = CONFIG.supabaseAnonKey;
+     if (!url || !key) return Promise.resolve(null);
+     if (!window.supabase) return Promise.reject(new Error("Supabase SDK not loaded"));
+     if (!supabaseClient) {
+       supabaseClient = window.supabase.createClient(url, key);
+     }
+     return Promise.resolve(supabaseClient);
+   }
+   
+   async function getProducts() {
+     if (!supabaseClient) await initSupabase();
+     if (!supabaseClient) return [];
+   
+     // Try each query in order — stop on first success
+     const attempts = [
+       () => supabaseClient.from("products_with_category").select("*").order("created_at", { ascending: true }),
+       () => supabaseClient.from("products").select("*, categories(slug, name)").order("created_at", { ascending: true }),
+       () => supabaseClient.from("products").select("*").order("created_at", { ascending: true }),
+     ];
+   
+     let lastError = null;
+     for (const run of attempts) {
+       try {
+         const { data, error } = await withTimeout(run(), 4000, "query");
+         if (!error && data && data.length > 0) return data;
+         if (error) lastError = error;
+       } catch (e) {
+         lastError = e;
+       }
+     }
+     throw lastError || new Error("Could not load products from database");
+   }
+   
+   /**
+    * loadProductCatalog — called by boot()
+    *
+    * ALWAYS returns immediately with built-in products so the page
+    * renders instantly. A background refresh then checks Supabase
+    * and swaps in live DB products if they exist.
+    */
+   async function loadProductCatalog() {
+     // ── STEP 1: Ensure built-ins have proper images & are ready NOW ──
+     PRODUCTS = applyCatalogImagesToList([...PRODUCTS]);
+   
+     // ── STEP 2: Return immediately so boot() can render the page ──
+     // Background DB refresh happens after render
+     if (CONFIG.supabaseUrl && CONFIG.supabaseAnonKey) {
+       setTimeout(() => _refreshFromDatabase(), 100);
+     }
+   
+     return PRODUCTS;
+   }
+   
+   async function _refreshFromDatabase() {
+     try {
+       await withTimeout(initSupabase(), 4000, "Supabase init");
+       if (!supabaseClient) return;
+   
+       const rows = await withTimeout(getProducts(), CATALOG_FETCH_MS, "Product fetch");
+   
+       if (!rows || !rows.length) {
+         console.info("VIVA: DB empty — keeping built-in catalog.");
+         return;
+       }
+   
+       const mapped = rows
+         .map((row) => {
+           try { return mapDbProduct(row); }
+           catch (e) { console.warn("Skipping row:", row?.name, e); return null; }
+         })
+         .filter(Boolean);
+   
+       if (!mapped.length) {
+         console.warn("VIVA: DB rows couldn't be mapped — keeping built-in catalog.");
+         return;
+       }
+   
+       PRODUCTS = applyCatalogImagesToList(mapped);
+       console.info("VIVA: Catalog refreshed from database —", PRODUCTS.length, "products.");
+   
+       // Re-render with live DB data (if applyFilters is available)
+       if (typeof applyFilters === "function") {
+         applyFilters();
+       }
+   
+     } catch (err) {
+       // Totally silent — built-ins are already showing, user sees nothing wrong
+       console.info("VIVA: DB refresh skipped —", err.message);
+     }
+   }
+</script>
 <script>
 /* ── CART & WISHLIST STATE ──────────────────────────────────── */
 let cart     = JSON.parse(localStorage.getItem("viva_cart"))     || [];
@@ -608,7 +1117,7 @@ function renderCartSidebar() {
     const imgSrc = getProductDisplayImage(p);
     return `
       <div class="cart-item">
-        <img class="cart-item-img" src="${imgSrc}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'">
+        <img class="cart-item-img" src="${imgSrc}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'">
         <div class="cart-item-info">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-price">${fmt(p.price)}</div>
@@ -651,7 +1160,7 @@ function renderWishlistSidebar() {
     if (!p) return "";
     return `
       <div class="cart-item">
-        <img class="cart-item-img" src="${getProductDisplayImage(p)}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'">
+        <img class="cart-item-img" src="${getProductDisplayImage(p)}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'">
         <div class="cart-item-info">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-price">${fmt(p.price)}</div>
@@ -689,7 +1198,7 @@ function comingSoonCardHtml() {
 function productImageHtml(p) {
   const src = getProductDisplayImage(p);
   const fb = IMG_FALLBACK;
-  return `<img src="${src}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fb}'">`;
+  return `<img src="${src}" alt="${esc(p.name)}" loading="eager" decoding="async" referrerpolicy="no-referrer-when-downgrade" onerror="this.onerror=null;this.src='${fb}'">`;
 }
 
 function renderProducts(products) {
@@ -733,7 +1242,7 @@ function primeProductCardImages() {
   document.querySelectorAll(".card-image-wrap img").forEach((img) => {
     img.loading = "eager";
     img.decoding = "async";
-    img.referrerPolicy = "no-referrer";
+    img.referrerPolicy = "no-referrer-when-downgrade";
     if (fb) {
       img.onerror = function () {
         this.onerror = null;
@@ -910,7 +1419,7 @@ function primeTopImages() {
   document.querySelectorAll("#splash img, .hero-visual img").forEach((img) => {
     img.loading = "eager";
     img.decoding = "async";
-    img.referrerPolicy = "no-referrer";
+    img.referrerPolicy = "no-referrer-when-downgrade";
     if (fb) {
       img.onerror = function () {
         this.onerror = null;
