@@ -13,7 +13,14 @@ const CONFIG = {
   socialMedia: {
     whatsapp: "https://wa.me/254741968635",
   },
+  supabaseUrl: "https://ehahxyrrzmgskffyyzzp.supabase.co",
+  supabaseAnonKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYWh4eXJyem1nc2tmZnl5enpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NTM3NjgsImV4cCI6MjA5NDUyOTc2OH0.WU_HR6OaBv1xqnQRmDHILwsut53pSIg4cAogNAXE84k",
 };
+
+if (typeof window !== "undefined" && window.VIVA_CONFIG) {
+  Object.assign(CONFIG, window.VIVA_CONFIG);
+}
 
 /** Reliable CDN images (Pexels) — works when opening file locally */
 function pexels(id, w = 600, h = null) {
@@ -23,6 +30,51 @@ function pexels(id, w = 600, h = null) {
 }
 
 const IMG_FALLBACK = pexels(1571460, 600, 400);
+
+/** Normalize product image URLs (absolute, Supabase storage, or fallback). */
+function resolveProductImageUrl(raw) {
+  if (!raw || typeof raw !== "string") return IMG_FALLBACK;
+  const trimmed = raw.trim();
+  if (!trimmed) return IMG_FALLBACK;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const base = (CONFIG.supabaseUrl || "").replace(/\/$/, "");
+  if (!base) return IMG_FALLBACK;
+  const path = trimmed.replace(/^\//, "");
+  if (path.startsWith("storage/v1/")) return `${base}/${path}`;
+  return `${base}/storage/v1/object/public/${path}`;
+}
+
+function productImageFromRow(row) {
+  const raw =
+    row?.image_url ||
+    row?.image ||
+    (Array.isArray(row?.images) && row.images[0]) ||
+    "";
+  return resolveProductImageUrl(raw);
+}
+
+function mapDbProduct(row) {
+  const cat =
+    row.category_slug ||
+    (row.categories && row.categories.slug) ||
+    row.category ||
+    (row.categories && row.categories.name) ||
+    String(row.category_id || "");
+  return {
+    id: row.id,
+    name: row.name,
+    category: String(cat).toLowerCase().replace(/\s+/g, "-"),
+    price: Number(row.price) || 0,
+    oldPrice: row.old_price,
+    badge: row.badge,
+    image: productImageFromRow(row),
+    description: row.description,
+    tags: row.tags || [],
+    inStock: row.in_stock !== false,
+    deliveryDays: row.delivery_days,
+    comingSoon: !!row.coming_soon,
+  };
+}
 
 const SITE_IMAGES = {
   splash: [
@@ -50,7 +102,7 @@ const CATEGORIES = [
   { id: "repairs",     label: "Repairs & Custom",   icon: "fa-solid fa-screwdriver-wrench" },
 ];
 
-const PRODUCTS = [
+let PRODUCTS = [
   {
     id: 1,
     name: "L-Shaped Fabric Sofa — 5 Seater, Grey",
@@ -136,7 +188,7 @@ const PRODUCTS = [
     price: 45000,
     oldPrice: 52000,
     badge: "new",
-    image: pexels(1957470, 600, 400),
+    image: pexels(7688336, 600, 400),
     description: "Professional desk with file drawers, keyboard tray, and built-in cable ports. Walnut finish. Perfect for home offices and studies.",
     tags: ["desk", "office", "work from home"],
     inStock: true,
@@ -162,7 +214,7 @@ const PRODUCTS = [
     price: 55000,
     oldPrice: 65000,
     badge: "sale",
-    image: pexels(2807088, 600, 400),
+    image: pexels(2765834, 600, 400),
     description: "Weather-resistant rattan-style patio set for balconies and gardens. Cushions included. Easy to maintain.",
     tags: ["outdoor", "patio", "garden", "rattan"],
     inStock: true,
@@ -188,7 +240,7 @@ const PRODUCTS = [
     price: 16500,
     oldPrice: 20000,
     badge: "sale",
-    image: pexels(159711, 600, 400),
+    image: pexels(1571453, 600, 400),
     description: "Versatile shelving unit for books, décor, and office supplies. Sturdy particle board with laminate finish.",
     tags: ["bookshelf", "storage", "office"],
     inStock: true,

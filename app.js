@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           badge: p.badge,
           rating: p.rating || 4.5,
           reviews: p.reviews || 0,
-          image: p.image_url,
+          image: productImageFromRow(p),
           images: p.images,
           description: p.description,
           tags: p.tags,
@@ -48,13 +48,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         }));
       } else {
         console.log('No database products found');
+        products = [...PRODUCTS];
       }
     } catch (error) {
       console.error('Database query failed:', error);
+      products = [...PRODUCTS];
     }
 
     // Store products globally
     window.PRODUCTS_FROM_DB = products;
+    PRODUCTS = products;
 
     // Hide loader now that data is ready (clears the safety timer too)
     clearTimeout(loaderTimer);
@@ -281,7 +284,7 @@ window.renderProducts = function(products) {
   grid.innerHTML = products.map(product => `
     <div class="product-card" data-id="${product.id}">
       <div class="card-image-wrap">
-        <img src="${product.image || product.image_url || 'https://via.placeholder.com/300x200?text=No+Image'}" alt="${product.name}" loading="lazy"/>
+        <img src="${resolveProductImageUrl(product.image || product.image_url)}" alt="${product.name}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'"/>
         ${product.badge ? `<span class="card-badge badge-${product.badge}">${product.badge}</span>` : ''}
         ${!product.inStock ? '<div class="out-of-stock-overlay">Out of Stock</div>' : ''}
       </div>
@@ -333,7 +336,7 @@ window.renderProducts = function(products) {
   grid.innerHTML = products.map(product => `
     <div class="product-card" data-id="${product.id}">
       <div class="card-image-wrap">
-        <img src="${product.image || product.image_url || 'https://via.placeholder.com/300x200?text=No+Image'}" alt="${product.name}" loading="lazy"/>
+        <img src="${resolveProductImageUrl(product.image || product.image_url)}" alt="${product.name}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${IMG_FALLBACK}'"/>
         ${product.badge ? `<span class="card-badge badge-${product.badge}">${product.badge}</span>` : ''}
         ${!product.inStock ? '<div class="out-of-stock-overlay">Out of Stock</div>' : ''}
       </div>
