@@ -54,16 +54,20 @@ function productImageFromRow(row) {
 }
 
 function mapDbProduct(row) {
-  const cat =
+  let cat =
     row.category_slug ||
     (row.categories && row.categories.slug) ||
     row.category ||
     (row.categories && row.categories.name) ||
-    String(row.category_id || "");
+    "";
+  if (!cat && row.category_id) {
+    cat = String(row.category_id);
+  }
+  const categorySlug = String(cat).toLowerCase().replace(/\s+/g, "-");
   return {
     id: row.id,
     name: row.name,
-    category: String(cat).toLowerCase().replace(/\s+/g, "-"),
+    category: categorySlug,
     price: Number(row.price) || 0,
     oldPrice: row.old_price,
     badge: row.badge,
