@@ -1,8 +1,6 @@
 /* ============================================================
    VIVA INTERIORS & FURNITURE REPAIRS — data.js
-   =========
-   
-   =================================================== */
+   ============================================================ */
 
 const CONFIG = {
   waNumber: "254741968635",
@@ -32,6 +30,42 @@ function pexels(id, w = 600, h = null) {
 }
 
 const IMG_FALLBACK = pexels(1571460, 600, 400);
+
+/** Same Pexels IDs as splash/hero — used for every product card image. */
+const CATEGORY_PEXELS_ID = {
+  living: 1571460,
+  bedroom: 1454806,
+  dining: 1080721,
+  office: 7688336,
+  outdoor: 2765834,
+  repairs: 1571468,
+};
+
+function normalizeProductName(name) {
+  return (name || "")
+    .toLowerCase()
+    .replace(/[—–‑-]/g, " ")
+    .replace(/[^\w\s&]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Product card image URL — same CDN pattern as splash screen (always works on Vercel). */
+function getProductDisplayImage(product) {
+  if (!product) return IMG_FALLBACK;
+  if (product.photoId) return pexels(product.photoId, 600, 400);
+  const key = normalizeProductName(product.name);
+  const match = BUILTIN_CATALOG.find((b) => normalizeProductName(b.name) === key);
+  if (match?.image) return match.image;
+  if (match?.photoId) return pexels(match.photoId, 600, 400);
+  const catId = CATEGORY_PEXELS_ID[product.category];
+  if (catId) return pexels(catId, 600, 400);
+  return IMG_FALLBACK;
+}
+
+function applyCatalogImagesToList(list) {
+  return list.map((p) => ({ ...p, image: getProductDisplayImage(p) }));
+}
 
 /** Normalize product image URLs (absolute, Supabase storage, or fallback). */
 function resolveProductImageUrl(raw) {
@@ -66,20 +100,22 @@ function mapDbProduct(row) {
     cat = String(row.category_id);
   }
   const categorySlug = String(cat).toLowerCase().replace(/\s+/g, "-");
-  return {
+  const mapped = {
     id: row.id,
     name: row.name,
     category: categorySlug,
     price: Number(row.price) || 0,
     oldPrice: row.old_price,
     badge: row.badge,
-    image: productImageFromRow(row),
+    image: IMG_FALLBACK,
     description: row.description,
     tags: row.tags || [],
     inStock: row.in_stock !== false,
     deliveryDays: row.delivery_days,
     comingSoon: !!row.coming_soon,
   };
+  mapped.image = getProductDisplayImage(mapped);
+  return mapped;
 }
 
 const SITE_IMAGES = {
@@ -111,6 +147,7 @@ const CATEGORIES = [
 let PRODUCTS = [
   {
     id: 1,
+    photoId: 1571460,
     name: "L-Shaped Fabric Sofa — 5 Seater, Grey",
     category: "living",
     price: 85000,
@@ -124,6 +161,7 @@ let PRODUCTS = [
   },
   {
     id: 2,
+    photoId: 276534,
     name: "Modern Coffee Table — Solid Wood & Glass",
     category: "living",
     price: 18500,
@@ -137,6 +175,7 @@ let PRODUCTS = [
   },
   {
     id: 3,
+    photoId: 1454806,
     name: "Queen Size Bed Frame — Upholstered Headboard",
     category: "bedroom",
     price: 62000,
@@ -150,6 +189,7 @@ let PRODUCTS = [
   },
   {
     id: 4,
+    photoId: 667838,
     name: "6-Door Wardrobe — Mirror & Hanging Rails",
     category: "bedroom",
     price: 95000,
@@ -163,6 +203,7 @@ let PRODUCTS = [
   },
   {
     id: 5,
+    photoId: 1080721,
     name: "Dining Set — 6 Chairs & Extendable Table",
     category: "dining",
     price: 78000,
@@ -176,6 +217,7 @@ let PRODUCTS = [
   },
   {
     id: 6,
+    photoId: 4621977,
     name: "Bar Stools — Set of 2, Leather Seat",
     category: "dining",
     price: 12000,
@@ -189,6 +231,7 @@ let PRODUCTS = [
   },
   {
     id: 7,
+    photoId: 7688336,
     name: "Executive Office Desk — Drawers & Cable Management",
     category: "office",
     price: 45000,
@@ -202,6 +245,7 @@ let PRODUCTS = [
   },
   {
     id: 8,
+    photoId: 1181533,
     name: "Ergonomic Office Chair — Mesh Back, Adjustable",
     category: "office",
     price: 22000,
@@ -215,6 +259,7 @@ let PRODUCTS = [
   },
   {
     id: 9,
+    photoId: 2765834,
     name: "Outdoor Patio Set — Table + 4 Chairs",
     category: "outdoor",
     price: 55000,
@@ -228,6 +273,7 @@ let PRODUCTS = [
   },
   {
     id: 10,
+    photoId: 7319274,
     name: "TV Stand — 55\" with Storage Cabinets",
     category: "living",
     price: 28000,
@@ -241,6 +287,7 @@ let PRODUCTS = [
   },
   {
     id: 11,
+    photoId: 1571453,
     name: "Bookshelf — 5-Tier Open Display",
     category: "office",
     price: 16500,
@@ -251,10 +298,10 @@ let PRODUCTS = [
     tags: ["bookshelf", "storage", "office"],
     inStock: true,
     deliveryDays: 2,
-     
   },
   {
     id: 12,
+    photoId: 1571468,
     name: "Sofa Re-Upholstery — Per Seat (Labour + Material)",
     category: "repairs",
     price: 8500,
@@ -268,6 +315,7 @@ let PRODUCTS = [
   },
   {
     id: 13,
+    photoId: 1080696,
     name: "Furniture Repair — Chairs, Tables & Cabinets",
     category: "repairs",
     price: 3500,
@@ -281,12 +329,14 @@ let PRODUCTS = [
   },
   {
     id: 14,
+    photoId: 667838,
     name: "Custom Built-In Wardrobe — Per Metre",
     category: "repairs",
     price: 18000,
     oldPrice: null,
     badge: "new",
     comingSoon: true,
+    image: pexels(667838, 600, 400),
     description: "Made-to-measure built-in wardrobes tailored to your space. Design consultation, manufacture, and installation by VIVA Interiors.",
     tags: ["custom", "wardrobe", "built-in"],
     inStock: true,
@@ -294,12 +344,14 @@ let PRODUCTS = [
   },
   {
     id: 15,
+    photoId: 1866149,
     name: "Accent Armchair — Velvet, Emerald Green",
     category: "living",
     price: 32000,
     oldPrice: 38000,
     badge: "sale",
     comingSoon: true,
+    image: pexels(1866149, 600, 400),
     description: "Statement armchair with velvet upholstery and gold-finish legs. Adds colour and comfort to any corner or reading nook.",
     tags: ["armchair", "velvet", "accent", "living room"],
     inStock: true,
@@ -307,18 +359,30 @@ let PRODUCTS = [
   },
   {
     id: 16,
+    photoId: 1454806,
     name: "Bedside Tables — Pair, 2 Drawers Each",
     category: "bedroom",
     price: 14000,
     oldPrice: 17000,
     badge: "sale",
     comingSoon: true,
+    image: pexels(1454806, 600, 400),
     description: "Matching pair of bedside tables with soft-close drawers. Compact design suits most bedrooms.",
     tags: ["bedside", "nightstand", "bedroom"],
     inStock: true,
     deliveryDays: 2,
   },
 ];
+
+const BUILTIN_CATALOG = PRODUCTS.map((p) => ({
+  id: p.id,
+  name: p.name,
+  category: p.category,
+  photoId: p.photoId,
+  image: p.image || (p.photoId ? pexels(p.photoId, 600, 400) : IMG_FALLBACK),
+}));
+
+PRODUCTS = applyCatalogImagesToList(PRODUCTS);
 
 function sortProductsList(list) {
   const available = list.filter((p) => !p.comingSoon);
@@ -330,5 +394,3 @@ function getDiscountPercentage(oldPrice, price) {
   if (!oldPrice || oldPrice <= price) return null;
   return Math.round(((oldPrice - price) / oldPrice) * 100);
 }
-
-
