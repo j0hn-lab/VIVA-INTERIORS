@@ -62,31 +62,28 @@ async function loadProductCatalog() {
     const rows = await withTimeout(getProducts(), CATALOG_FETCH_MS, "Product fetch");
 
     if (rows && rows.length > 0) {
-      PRODUCTS = rows.map((row) => {
-        try {
-          const mapped = mapDbProduct(row);
-          if (mapped.image === IMG_FALLBACK && row.name) {
-            const local = builtIn.find((p) => p.name === row.name);
-            if (local?.image) mapped.image = resolveProductImageUrl(local.image);
+      PRODUCTS = applyCatalogImagesToList(
+        rows.map((row) => {
+          try {
+            return mapDbProduct(row);
+          } catch (rowErr) {
+            console.warn("Skipping product row:", row?.name, rowErr);
+            return null;
           }
-          return mapped;
-        } catch (rowErr) {
-          console.warn("Skipping product row:", row?.name, rowErr);
-          return null;
-        }
-      }).filter(Boolean);
+        }).filter(Boolean)
+      );
 
       if (!PRODUCTS.length) {
         console.warn("DB products could not be mapped; using built-in catalog.");
-        PRODUCTS = builtIn;
+        PRODUCTS = applyCatalogImagesToList(builtIn);
       }
     } else {
       console.warn("No products in database; using built-in catalog.");
-      PRODUCTS = builtIn;
+      PRODUCTS = applyCatalogImagesToList(builtIn);
     }
   } catch (err) {
     console.warn("Supabase catalog load failed; using built-in products.", err);
-    PRODUCTS = builtIn;
+    PRODUCTS = applyCatalogImagesToList(builtIn);
   }
 
   return PRODUCTS;
